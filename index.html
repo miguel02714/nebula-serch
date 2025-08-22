@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nebula Search</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; font-family: Arial, sans-serif; }
+  body {
+    background: #f5f5f5;
+    color: #202124;
+  }
+
+  .search-container {
+    max-width: 700px;
+    margin: 50px auto 0 auto;
+    text-align: center;
+  }
+
+  .search-container h1 {
+    font-size: 48px;
+    margin-bottom: 20px;
+    font-weight: normal;
+    color: #202124;
+  }
+
+  .search-box {
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    margin-bottom: 30px;
+  }
+
+  .search-box input {
+    width: 100%;
+    max-width: 500px;
+    padding: 10px 15px;
+    font-size: 16px;
+    border: 1px solid #dfe1e5;
+    border-radius: 24px;
+    outline: none;
+  }
+
+  .search-box button {
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 24px;
+    border: none;
+    background: #1a73e8;
+    color: white;
+    cursor: pointer;
+  }
+
+  .search-box button:hover {
+    background: #1765c1;
+  }
+
+  .results {
+    max-width: 700px;
+    margin: 0 auto 50px auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .result-item {
+    background: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    text-align: left;
+  }
+
+  .result-item a {
+    color: #1a0dab;
+    font-weight: normal;
+    font-size: 18px;
+    text-decoration: none;
+  }
+
+  .result-item a:hover {
+    text-decoration: underline;
+  }
+
+  .result-item p {
+    color: #4d5156;
+    font-size: 14px;
+    margin-top: 5px;
+  }
+</style>
+</head>
+<body>
+
+<div class="search-container">
+  <h1>Nebula Search</h1>
+  <div class="search-box">
+    <input type="text" id="search-input" placeholder="Pesquise algo...">
+    <button id="search-btn">Buscar</button>
+  </div>
+</div>
+
+<div class="results" id="results"></div>
+
+<script>
+const input = document.getElementById('search-input');
+const btn = document.getElementById('search-btn');
+const resultsDiv = document.getElementById('results');
+
+async function search() {
+  const query = input.value.trim();
+  if(!query) return;
+
+  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&no_redirect=1`;
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    displayResults(data);
+  } catch (error) {
+    resultsDiv.innerHTML = '<p>Erro ao buscar resultados. Tente novamente.</p>';
+  }
+}
+
+function displayResults(data) {
+  resultsDiv.innerHTML = '';
+  let hasResults = false;
+
+  if(data.AbstractText) {
+    const abstractItem = document.createElement('div');
+    abstractItem.classList.add('result-item');
+    abstractItem.innerHTML = `<p>${data.AbstractText}</p>`;
+    resultsDiv.appendChild(abstractItem);
+    hasResults = true;
+  }
+
+  if(data.RelatedTopics && data.RelatedTopics.length>0) {
+    data.RelatedTopics.forEach(topic => {
+      if(topic.FirstURL && topic.Text) {
+        const item = document.createElement('div');
+        item.classList.add('result-item');
+        item.innerHTML = `<a href="${topic.FirstURL}" target="_blank">${topic.Text}</a>`;
+        resultsDiv.appendChild(item);
+        hasResults = true;
+      }
+    });
+  }
+
+  if(!hasResults) {
+    resultsDiv.innerHTML = '<p>Nenhum resultado encontrado.</p>';
+  }
+}
+
+btn.addEventListener('click', search);
+input.addEventListener('keydown', e => { if(e.key==='Enter') search(); });
+</script>
+
+</body>
+</html>
