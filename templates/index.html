@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nebula Search</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #1e1e2f;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      transition: .5s;
+    }
+    .search-container {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      position: absolute;
+      top: 60%;
+      transform: translateY(-50%);
+      transition: .5s;
+    }
+    .search-container.top { top: 20px; transform: none; }
+    .search-box {
+      width: 100%;
+      display: flex;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #2b2b44;
+      box-shadow: 0 10px 25px rgba(0,0,0,.4);
+    }
+    .search-box input {
+      flex: 1;
+      padding: 14px 18px;
+      border: none;
+      outline: none;
+      font-size: 16px;
+      background: #2b2b44;
+      color: #fff;
+    }
+    .search-box button {
+      background: #8c52ff;
+      border: none;
+      padding: 14px 20px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #fff;
+      transition: .3s;
+    }
+    .search-box button:hover { background: #613cc1; }
+    .results {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: .5s;
+    }
+    .results.show { opacity: 1; transform: none; }
+    .result-item {
+      background: #2b2b44;
+      padding: 15px 20px;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,.4);
+      cursor: pointer;
+      transition: .3s;
+    }
+    .result-item:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(0,0,0,.6);
+    }
+    .result-title { font-size: 18px; font-weight: 600; }
+    .result-description { font-size: 14px; color: #ccc; }
+
+    /* Navegador interno */
+    #browser-container {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #1e1e2f;
+      z-index: 100;
+      flex-direction: column;
+    }
+    #browser-header, #tabs {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: #2b2b44;
+      border-bottom: 1px solid #444;
+    }
+    #browser-header input {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 5px;
+      border: 1px solid #613cc1;
+      background: #1e1e2f;
+      color: #fff;
+    }
+    #browser-header button, .tab {
+      background: #8c52ff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 5px;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .tab { display: flex; align-items: center; gap: 5px; }
+    .tab-close { cursor: pointer; font-weight: bold; }
+    #browser-frame { flex: 1; border: none; width: 100%; }
+  </style>
+</head>
+<body>
+
+  <div class="search-container" id="search-container">
+    <div class="search-box">
+      <input type="text" id="search-input" placeholder="Digite o nome do site...">
+      <button id="search-btn">Buscar</button>
+    </div>
+    <div class="results" id="results"></div>
+  </div>
+
+  <div id="browser-container">
+    <div id="browser-header">
+      <input type="text" id="browser-input">
+      <button id="browser-go">Ir</button>
+    </div>
+    <div id="tabs"></div>
+    <iframe id="browser-frame"></iframe>
+  </div>
+
+  <script src="data.js"></script>
+  <script>
+    const input = document.getElementById('search-input');
+    const searchBtn = document.getElementById('search-btn');
+    const results = document.getElementById('results');
+    const searchContainer = document.getElementById('search-container');
+
+    const browserContainer = document.getElementById('browser-container');
+    const browserFrame = document.getElementById('browser-frame');
+    const tabs = document.getElementById('tabs');
+    const browserInput = document.getElementById('browser-input');
+    const browserGo = document.getElementById('browser-go');
+
+    const resultsPerPage = 10;
+    let currentPage = 1;
+
+    function displayResults(query, page = 1) {
+      results.innerHTML = '';
+      const q = query.trim().toLowerCase();
+
+      if (q) {
+        searchContainer.classList.add('top');
+        results.classList.add('show');
+      } else {
+        searchContainer.classList.remove('top');
+        results.classList.remove('show');
+      }
+
+      const filtered = bigData.filter(item =>
+        item.title.toLowerCase().includes(q) ||
+        item.desc.toLowerCase().includes(q)
+      );
+
+      if (!filtered.length && q) {
+        results.innerHTML = '<p style="text-align:center; color:#ccc;">Nenhum resultado encontrado</p>';
+        return;
+      }
+
+      const start = (page - 1) * resultsPerPage;
+      const pageResults = filtered.slice(start, start + resultsPerPage);
+
+      pageResults.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'result-item';
+        div.innerHTML = `
+          <div class="result-title">${item.title}</div>
+          <div class="result-description">${item.desc}</div>`;
+        div.onclick = () => openInBrowser(item.title, item.link);
+        results.appendChild(div);
+      });
+    }
+
+    function openInBrowser(title, url) {
+      browserContainer.style.display = 'flex';
+      browserFrame.src = url;
+      browserInput.value = url;
+
+      tabs.innerHTML = `
+        <div class="tab">
+          <span>${title}</span>
+          <div class="tab-close">✕</div>
+        </div>
+      `;
+      tabs.querySelector('.tab-close').onclick = () => {
+        browserContainer.style.display = 'none';
+        browserFrame.src = '';
+      };
+    }
+
+    browserGo.onclick = () => browserFrame.src = browserInput.value;
+
+    searchBtn.onclick = () => { currentPage = 1; displayResults(input.value, currentPage); };
+    input.onkeydown = e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        currentPage = 1;
+        displayResults(input.value, currentPage);
+      }
+    };
+
+    displayResults('');
+  </script>
+</body>
+</html>
